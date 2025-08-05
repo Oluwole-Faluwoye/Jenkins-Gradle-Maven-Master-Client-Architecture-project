@@ -37,9 +37,9 @@ This will download and run your Maven-userdata.sh from your GitHub repo automati
 
 #!/bin/bash
 cd /tmp
-wget https://raw.githubusercontent.com/Oluwole-Faluwoye/Jenkins-Gradle-Maven-Master-Client-Architecture-project/refs/heads/main/Maven-userdata.sh -O userdata.sh
+wget https://raw.githubusercontent.com/Oluwole-Faluwoye/Jenkins-Gradle-Maven-Master-Client-Architecture-project/refs/heads/main/Maven-userdata.sh -O Maven-userdata.sh
 chmod +x Maven-userdata.sh
-./Maven-userdata.sh
+sudo ./Maven-userdata.sh
 
 Launch the instance
 
