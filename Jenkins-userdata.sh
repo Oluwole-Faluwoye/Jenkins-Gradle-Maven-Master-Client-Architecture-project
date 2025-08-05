@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e  # Exit immediately if a command exits with a non-zero status
+
 # ----------------------------------------
 # Update system packages
 # ----------------------------------------
@@ -22,9 +24,6 @@ echo 'export PATH=$JAVA_HOME/bin:$PATH' >> /etc/profile.d/java.sh
 chmod +x /etc/profile.d/java.sh
 source /etc/profile.d/java.sh
 
-# Set JAVA_HOME for Jenkins service
-echo 'JAVA_HOME="/usr/lib/jvm/java-11-amazon-corretto"' >> /etc/sysconfig/jenkins
-
 # ----------------------------------------
 # Install Jenkins
 # ----------------------------------------
@@ -35,17 +34,31 @@ rpm --import https://pkg.jenkins.io/redhat-stable/jenkins.io-2023.key
 # Install Jenkins
 yum install -y jenkins
 
-# Enable and start Jenkins service
+# Set Jenkins to use Java 11
+echo 'JAVA_HOME="/usr/lib/jvm/java-11-amazon-corretto"' >> /etc/sysconfig/jenkins
+
+# Remove unsupported directives from Jenkins systemd unit (if present)
+sed -i '/^StartLimitBurst/d' /usr/lib/systemd/system/jenkins.service || true
+sed -i '/^StartLimitInterval/d' /usr/lib/systemd/system/jenkins.service || true
+
+# Reload systemd and enable/start Jenkins
+systemctl daemon-reexec
+systemctl daemon-reload
 systemctl enable jenkins
 systemctl start jenkins
-
-# Restart Jenkins to pick up new JAVA_HOME
-systemctl restart jenkins
 
 # ----------------------------------------
 # Install Git
 # ----------------------------------------
 yum install -y git
+
+# ----------------------------------------
+# Optional: Open firewall port 8080 (if firewalld is running)
+# ----------------------------------------
+if systemctl is-active firewalld >/dev/null 2>&1; then
+  firewall-cmd --permanent --add-port=8080/tcp
+  firewall-cmd --reload
+fi
 
 # ----------------------------------------
 # Show Jenkins admin password and access URL
@@ -56,7 +69,6 @@ sleep 30
 echo "Jenkins initial admin password:"
 cat /var/lib/jenkins/secrets/initialAdminPassword 2>/dev/null || echo "Password file not ready yet. Try again in a few minutes."
 
-# Display Jenkins public IP address
 PUBLIC_IP=$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4)
 echo "Access Jenkins at: http://$PUBLIC_IP:8080"
 
