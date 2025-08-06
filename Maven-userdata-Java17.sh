@@ -77,6 +77,7 @@ sudo chown -R jenkinsmaster:jenkinsmaster /home/jenkinsmaster/.m2
 # STEP 10: Download and Apply .bash_profile for jenkinsmaster
 # ----------------------------------------
 sudo su - jenkinsmaster -c "wget https://raw.githubusercontent.com/Oluwole-Faluwoye/Jenkins-Gradle-Maven-Master-Client-Architecture-project/refs/heads/main/.bash_profile -O /home/jenkinsmaster/.bash_profile"
+sudo su - jenkinsmaster -c "echo 'export JAVA_HOME=/usr/lib/jvm/java-17-openjdk' >> /home/jenkinsmaster/.bash_profile"
 sudo su - jenkinsmaster -c "source /home/jenkinsmaster/.bash_profile"
 
 # ----------------------------------------
