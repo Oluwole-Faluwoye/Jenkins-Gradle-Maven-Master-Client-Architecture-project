@@ -59,7 +59,7 @@ sudo yum install -y git
 
 echo "=== Downloading Maven settings.xml for jenkinsmaster ==="
 sudo mkdir -p /home/jenkinsmaster/.m2
-sudo wget -q https://raw.githubusercontent.com/awanmbandi/realworld-cicd-pipeline-project/maven-sonarqube-nexus-jenkins/settings.xml -P /home/jenkinsmaster/.m2/
+sudo wget -q https://raw.githubusercontent.com/Oluwole-Faluwoye/Jenkins-Gradle-Maven-Master-Client-Architecture-project/refs/heads/main/settings.xml -P /home/jenkinsmaster/.m2/
 sudo chown -R jenkinsmaster:jenkinsmaster /home/jenkinsmaster/.m2
 
 echo "=== Verifying installations as jenkinsmaster user ==="
