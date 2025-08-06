@@ -1,70 +1,48 @@
 #!/bin/bash
-set -euo pipefail
 
-echo "=== Updating system ==="
-sudo yum update -y
+echo "=============================="
+echo "🚀 Installing Java 17 and Maven"
+echo "=============================="
 
-echo "=== Installing Java 17 (Amazon Corretto) ==="
-sudo amazon-linux-extras enable corretto17
-sudo yum clean metadata
-sudo yum install -y java-17-amazon-corretto-devel
+# Install Java 17
+sudo yum install -y java-17-amazon-corretto-devel || sudo yum install -y java-17-openjdk-devel
 
-echo "=== Installing Maven 3.9.6 manually ==="
+# Check Java
+java -version || echo "⚠️ Java not found after install"
+
+# Install Maven
 MAVEN_VERSION=3.9.6
-cd /opt
-sudo wget -q https://archive.apache.org/dist/maven/maven-3/${MAVEN_VERSION}/binaries/apache-maven-${MAVEN_VERSION}-bin.tar.gz
-sudo tar -xzf apache-maven-${MAVEN_VERSION}-bin.tar.gz
-sudo ln -sfn apache-maven-${MAVEN_VERSION} maven
-sudo rm -f apache-maven-${MAVEN_VERSION}-bin.tar.gz
+wget https://downloads.apache.org/maven/maven-3/${MAVEN_VERSION}/binaries/apache-maven-${MAVEN_VERSION}-bin.zip -P /tmp
+sudo unzip -q /tmp/apache-maven-${MAVEN_VERSION}-bin.zip -d /opt
+sudo mv /opt/apache-maven-${MAVEN_VERSION} /opt/maven
 
-echo "=== Setting system-wide environment variables ==="
-sudo tee /etc/profile.d/java_maven.sh > /dev/null <<EOF
-export JAVA_HOME=/usr/lib/jvm/java-17-amazon-corretto
+# Set JAVA_HOME for all users
+JAVA_HOME_PATH=$(dirname $(dirname $(readlink $(readlink $(which javac)))))
+
+ENV_LINE="
+# Java and Maven Env
+export JAVA_HOME=$JAVA_HOME_PATH
 export M2_HOME=/opt/maven
 export PATH=\$JAVA_HOME/bin:\$M2_HOME/bin:\$PATH
-EOF
+"
+
+# Apply to all users via /etc/profile.d
+echo "$ENV_LINE" | sudo tee /etc/profile.d/java_maven.sh > /dev/null
 sudo chmod +x /etc/profile.d/java_maven.sh
-source /etc/profile.d/java_maven.sh
 
-echo "=== Creating jenkinsmaster user if missing ==="
-if ! id -u jenkinsmaster >/dev/null 2>&1; then
-  sudo useradd jenkinsmaster
-fi
-
-echo "=== Setting password for jenkinsmaster ==="
+# Add jenkinsmaster user with password
+sudo useradd jenkinsmaster
 echo "jenkinsmaster:jenkinsmaster" | sudo chpasswd
 
-echo "=== Downloading .bash_profile for jenkinsmaster ==="
-sudo tee /home/jenkinsmaster/.bash_profile > /dev/null <<'EOB'
-# .bash_profile for jenkinsmaster
-export JAVA_HOME=/usr/lib/jvm/java-17-amazon-corretto
-export M2_HOME=/opt/maven
-export PATH=$JAVA_HOME/bin:$M2_HOME/bin:$PATH
-EOB
+# Copy env to jenkinsmaster's profile
+sudo cp /etc/profile.d/java_maven.sh /home/jenkinsmaster/
+echo "$ENV_LINE" | sudo tee -a /home/jenkinsmaster/.bash_profile > /dev/null
 sudo chown jenkinsmaster:jenkinsmaster /home/jenkinsmaster/.bash_profile
 
-echo "=== Enabling SSH password authentication ==="
-sudo sed -i 's/^PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config || true
-sudo systemctl restart sshd
-
-echo "=== Granting jenkinsmaster passwordless sudo ==="
-echo "jenkinsmaster   ALL=(ALL)       NOPASSWD: ALL" | sudo tee /etc/sudoers.d/jenkinsmaster
-sudo chmod 440 /etc/sudoers.d/jenkinsmaster
-
-echo "=== Fixing permissions on /opt ==="
-sudo chown -R jenkinsmaster:jenkinsmaster /opt
-
-echo "=== Installing Git ==="
-sudo yum install -y git
-
-echo "=== Downloading Maven settings.xml for jenkinsmaster ==="
-sudo mkdir -p /home/jenkinsmaster/.m2
-sudo wget -q https://raw.githubusercontent.com/Oluwole-Faluwoye/Jenkins-Gradle-Maven-Master-Client-Architecture-project/refs/heads/main/settings.xml -P /home/jenkinsmaster/.m2/
-sudo chown -R jenkinsmaster:jenkinsmaster /home/jenkinsmaster/.m2
-
-echo "=== Verifying installations as jenkinsmaster user ==="
-sudo -i -u jenkinsmaster bash -c "java -version"
-sudo -i -u jenkinsmaster bash -c "javac -version"
-sudo -i -u jenkinsmaster bash -c "mvn -v"
-
-echo "=== Setup complete ==="
+# Final Checks
+echo "=============================="
+echo "✅ Final Checks"
+echo "=============================="
+java -version
+mvn -v || echo "⚠️ Maven not detected. Check PATH"
+echo "✅ Setup Complete"
