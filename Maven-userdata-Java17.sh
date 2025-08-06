@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # ----------------------------------------
-# STEP 1: System Update and Install Java 17 JDK
+# STEP 1: Update System and Install Java 17
 # ----------------------------------------
 sudo yum update -y
 sudo amazon-linux-extras enable java-openjdk17
@@ -25,26 +25,21 @@ sudo tar -xvzf apache-maven-3.9.6-bin.tar.gz
 sudo ln -s apache-maven-3.9.6 maven
 
 # ----------------------------------------
-# STEP 4: Set Global Environment Variables
+# STEP 4: Set Global Environment Variables (System-wide)
 # ----------------------------------------
-sudo tee /etc/profile.d/java.sh > /dev/null <<EOF
+sudo tee /etc/profile.d/java_maven.sh > /dev/null <<EOF
 export JAVA_HOME=/usr/lib/jvm/java-17-openjdk
-export PATH=\$JAVA_HOME/bin:\$PATH
-EOF
-
-sudo tee /etc/profile.d/maven.sh > /dev/null <<EOF
 export M2_HOME=/opt/maven
-export PATH=\$M2_HOME/bin:\$PATH
+export PATH=\$JAVA_HOME/bin:\$M2_HOME/bin:\$PATH
 EOF
 
-sudo chmod +x /etc/profile.d/*.sh
-source /etc/profile.d/java.sh
-source /etc/profile.d/maven.sh
+sudo chmod +x /etc/profile.d/java_maven.sh
+source /etc/profile.d/java_maven.sh
 
 # ----------------------------------------
 # STEP 5: Create jenkinsmaster User with Password
 # ----------------------------------------
-sudo useradd jenkinsmaster
+sudo useradd jenkinsmaster || true
 echo jenkinsmaster | sudo passwd jenkinsmaster --stdin
 
 # ----------------------------------------
@@ -74,15 +69,22 @@ sudo wget https://raw.githubusercontent.com/Oluwole-Faluwoye/Jenkins-Gradle-Mave
 sudo chown -R jenkinsmaster:jenkinsmaster /home/jenkinsmaster/.m2
 
 # ----------------------------------------
-# STEP 10: Download and Apply .bash_profile for jenkinsmaster
+# STEP 10: Apply .bash_profile for jenkinsmaster
+# (Overwrites with correct JAVA_HOME)
 # ----------------------------------------
-sudo su - jenkinsmaster -c "wget https://raw.githubusercontent.com/Oluwole-Faluwoye/Jenkins-Gradle-Maven-Master-Client-Architecture-project/refs/heads/main/.bash_profile -O /home/jenkinsmaster/.bash_profile"
-sudo su - jenkinsmaster -c "echo 'export JAVA_HOME=/usr/lib/jvm/java-17-openjdk' >> /home/jenkinsmaster/.bash_profile"
-sudo su - jenkinsmaster -c "source /home/jenkinsmaster/.bash_profile"
+sudo tee /home/jenkinsmaster/.bash_profile > /dev/null <<EOF
+# .bash_profile for jenkinsmaster
+export JAVA_HOME=/usr/lib/jvm/java-17-openjdk
+export M2_HOME=/opt/maven
+export PATH=\$JAVA_HOME/bin:\$M2_HOME/bin:\$PATH
+EOF
+
+sudo chown jenkinsmaster:jenkinsmaster /home/jenkinsmaster/.bash_profile
 
 # ----------------------------------------
-# STEP 11: Verify Tool Versions as jenkinsmaster
+# STEP 11: Source and Verify
 # ----------------------------------------
+sudo su - jenkinsmaster -c "source /home/jenkinsmaster/.bash_profile"
 sudo su - jenkinsmaster -c "java -version"
 sudo su - jenkinsmaster -c "javac -version"
-sudo su - jenkinsmaster -c "mvn -version"
+sudo su - jenkinsmaster -c "mvn -v"
