@@ -1,6 +1,6 @@
-Use Maven-userdata.sh (from your repo) as a cloud-init script to:
+Use Maven-Java17-Shell-Script-Amazon-Linux-2023.sh to 
 
-Install Java 11 + Maven
+Install Java 17 + Maven
 
 Create jenkinsmaster
 
@@ -8,7 +8,6 @@ Configure environment variables
 
 Enable password SSH login
 
-Set up Maven and Nexus credentials
 
 ✅ Step-by-Step EC2 Setup (Amazon Linux 2)
 ✅ 
@@ -19,7 +18,7 @@ In the AWS Console:
 
 Go to EC2 → Launch Instance
 
-Choose Amazon Linux 2 AMI
+Choose Amazon Linux 2023 AMI
 
 Choose instance type (e.g., t2.micro)
 
@@ -33,48 +32,84 @@ Allow port 22 (SSH)
 
 (Optional) Allow port 8080 for Jenkins web UI
 
-This will download and run your Maven-userdata.sh from your GitHub repo automatically during launch.
+✅Paste your userdata in your launch page of your instance 
 
-#!/bin/bash
-cd /tmp
-wget https://raw.githubusercontent.com/Oluwole-Faluwoye/Jenkins-Gradle-Maven-Master-Client-Architecture-project/refs/heads/main/Maven-userdata-Java17.sh -O Maven-userdata-Java17.sh
-chmod +x Maven-userdata-Java17.sh
-sudo ./Maven-userdata-Java17.sh
+✅Launch the instance
 
-Launch the instance
+✅SSH into Instance as jenkinsmaster
 
-✅ 3. SSH into Instance as jenkinsmaster
-Wait for the instance to finish booting (a few minutes).
+✅Wait for the instance to finish booting (a few minutes).
 
 Then:
 
-bash
-Copy
-Edit
 ssh jenkinsmaster@<your-ec2-public-ip>
 Password: jenkinsmaster
 
 ✅ You should now be inside as the jenkinsmaster user with:
 
-Java 11 as default
-
-Maven 3.9.6 installed
-
-Environment variables set
-
-.bash_profile loaded
-
-settings.xml in place
-
-🔍 How to Confirm It's Working
-Once logged in via SSH:
-
-bash
-Copy
-Edit
-java -version         # Should show Java 11
-javac -version        # Should show Java 11
+java -version         # Should show Java 17
+javac -version        # Should show Java 17
 mvn -version          # Should show Maven 3.9.6
-echo $JAVA_HOME       # Should show /usr/lib/jvm/java-11-openjdk
+echo $JAVA_HOME       # Should show /usr/lib/jvm/java-17-amazon-corretto.x86_64
 echo $M2_HOME         # Should show /opt/maven
-ls ~/.m2/settings.xml # Should exist
+
+✅Now install git 
+
+sudo dnf install git -y
+
+
+✅ clone your project into the jenkinsmaster user environment
+
+✅ Here's how to fix it:
+🔹 Option 1: Clone into a directory where jenkinsmaster has permission (home directory)
+
+cd ~
+
+
+git clone https://github.com/Oluwole-Faluwoye/realworld-cicd-pipeline-project.git
+
+cd realworld-cicd-pipeline-project
+
+✅ Checkout to the branch you have your code 
+
+git checkout maven-sonarqube-nexus
+
+
+
+✅ Create a settings-xml.sh file with 
+
+vi settings-xml.sh
+
+
+
+✅Paste the following commands
+
+-----------------------------------------------------------------------------------
+
+
+
+#!/bin/bash
+
+# Variables
+USER_HOME="/home/jenkinsmaster"
+M2_DIR="$USER_HOME/.m2"
+SETTINGS_URL="https://raw.githubusercontent.com/Oluwole-Faluwoye/Jenkins-Gradle-Maven-Master-Client-Architecture-project/refs/heads/main/settings.xml"
+
+# Create .m2 directory if not exists
+mkdir -p "$M2_DIR"
+
+# Download settings.xml
+wget "$SETTINGS_URL" -O "$M2_DIR/settings.xml"
+
+# Set correct ownership
+chown -R jenkinsmaster:jenkinsmaster "$M2_DIR"
+
+echo "✅ settings.xml downloaded and permissions set."
+
+-----------------------------------------------------------------------------------
+
+
+✅After saving the settings-xml.sh file 
+
+chmod +x settings-xml.sh
+sudo ./settings-xml.sh

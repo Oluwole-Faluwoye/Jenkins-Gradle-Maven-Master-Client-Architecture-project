@@ -13,103 +13,6 @@ curl -s https://raw.githubusercontent.com/Oluwole-Faluwoye/Jenkins-Gradle-Maven-
 
 
 
-Step 1: Enable the Amazon Linux Extras repo for Java 11
-
-sudo amazon-linux-extras enable java-openjdk11
-sudo yum clean metadata
-
-
-✅ Step 2: Install Java 11 JDK
-
-sudo yum install -y java-11-openjdk-devel
-This installs JDK 11, including the compiler javac.
-
-✅ Step 3: Set Java 11 as the default
-Amazon Linux 2 might already have Java 1.8 or 17 installed, so now we’ll use alternatives to enforce Java 11:
-
-🔁 Set default Java version:
-
-sudo alternatives --config java
-Select the option that points to Java 11 (usually something like /usr/lib/jvm/java-11-openjdk/bin/java).
-Enter the corresponding number (e.g., 2) and press Enter.
-
-🔁 Set default javac version:
-
-sudo alternatives --config javac
-Again, choose the one for Java 11.
-
-✅ Step 4: Set JAVA_HOME globally
-🗂 Option A: Set it via /etc/profile.d/java.sh
-
-
-echo "export JAVA_HOME=/usr/lib/jvm/java-11-openjdk" | sudo tee /etc/profile.d/java.sh
-echo 'export PATH=$JAVA_HOME/bin:$PATH' | sudo tee -a /etc/profile.d/java.sh
-sudo chmod +x /etc/profile.d/java.sh
-source /etc/profile.d/java.sh
-This sets the environment variable system-wide for all users, including Jenkins, Maven, etc.
-
-✅ Step 5: Confirm setup
-Run the following:
-
-
-java -version
-javac -version
-echo $JAVA_HOME
-You should see something like:
-
-
-openjdk version "11.0.25" 2025-04-16
-javac 11.0.25
-/usr/lib/jvm/java-11-openjdk
-
-
--------------------------------------------------------------------------------------
-NOW WE NEED TO INSTALL Jenkins that is packaged with JAVA 11
-
-You’ll need to install a Jenkins version that fully supports Java 11, including a Java 11-compatible remoting.jar.
-
-🎯 Use Jenkins 2.361.4 or earlier
-Jenkins 2.361.4 is the last LTS version that works fully with Java 11.
-
-After that, newer versions of Jenkins (and its agents) require Java 17.
-
-
-
-1. Install Jenkins 2.361.4
-
-sudo wget https://get.jenkins.io/redhat-stable/jenkins-2.361.4-1.1.noarch.rpm
-
-sudo yum install -y jenkins-2.361.4-1.1.noarch.rpm
-
-This will give you:
-
-A Jenkins core that runs on Java 11
-
-An agent (remoting.jar) that is also Java 11-compatible
-
-2. Restart Jenkins
-
-sudo systemctl daemon-reexec
-sudo systemctl restart jenkins
-
-3. Confirm Java version on master
-
-java -version
-Should show Java 11.
--------------------------------------------------------------------------------------
-
-🔁 Optional: Set for Jenkins specifically
-If you're using a Jenkins user (e.g., jenkinsmaster), add it to their .bash_profile:
-
-
-echo "export JAVA_HOME=/usr/lib/jvm/java-11-openjdk" >> /home/jenkinsmaster/.bash_profile
-echo 'export PATH=$JAVA_HOME/bin:$PATH' >> /home/jenkinsmaster/.bash_profile
-Then:
-
-
-sudo chown jenkinsmaster:jenkinsmaster /home/jenkinsmaster/.bash_profile
-
-
  Configure Master and Clinet Configuration
 Click on "Manage Jenkins" >> Click "Nodes and Cloud" >> Click "New Node"
 Click New Node
@@ -122,8 +25,11 @@ Remote root directory: /opt/maven-builds
 Labels: Maven-Build-Env
 Usage: Use this node as much as possible
 Launch method: Launch agents via SSH
-Host: Provide IP of Maven-Build-Server
+Host: Provide Private IP of Maven-Build-Server
 Credentials:
+
+------------------------------------------------------------------------------------
+
 Login to Maven VM
 Run the following commands
 sudo su
@@ -156,15 +62,13 @@ PasswordAuthentication yes
 
 This enables login with passwords (instead of just key pairs).
 
-✅ 3. Restart the SSH service
-
-sudo systemctl restart sshd
-
-✅ 4. (Optional but recommended) Allow PAM
+✅ 3. (Optional but recommended) Allow PAM
 Also ensure this is enabled in /etc/ssh/sshd_config:
 
+Find #UsePAM no change it to UsePAM yes
 
-Restart SSH again if you change it.
+
+✅ 4.Restart SSH again if you change it.
 
 systemctl restart sshd
 
@@ -189,15 +93,80 @@ Select Environment variables
 Click Add
 1st Variable:
 Name: MAVEN_HOME
-Value: /usr/share/apache-maven
+Value: /opt/maven
 2nd Variable:
 Name: PATH
 Value: $MAVEN_HOME/bin:$PATH
 Click SAVE
 
 NOTE: Make sure the Agent Status shows Agent successfully connected and online on the Logs
+
+----------------------------------------------------------------------------
+
+nano ~/.bashrc
+
+Add Maven Environment Variables
+At the bottom of the file, add:
+
+export MAVEN_HOME=/opt/maven
+export PATH=$MAVEN_HOME/bin:$PATH
+
+
+ Save and Exit
+In nano:
+
+Press CTRL + O, then ENTER to save.
+
+Press CTRL + X to exit.
+
+5. Reload .bashrc to Apply Changes Immediately
+
+source ~/.bashrc
+
+6. Verify
+Run:
+
+
+echo $MAVEN_HOME
+
+You should see:
+
+/opt/maven
+
+Then to get your path:
+
+
+mvn -v
+----------------------------------------------------------------------------------------------------------------------------------------------------
+
+Our Maven Node is up but the diskspace where it is running is low so here is one of the option to sort that, we can either mount more space or disable or reduce the threshold for diskspace in Jenkins settings 
+
+
+Option 3: Lower Jenkins Disk Space Threshold
+You can configure Jenkins to accept lower disk space:
+
+Go to Manage Jenkins → Nodes.
+
+Click the node having the problem.
+
+Click Configure.
+
+Scroll down to Node Properties → Tool Locations or Environment Variables.
+
+Check “Custom Workspace” or “Disk Space Monitoring” and adjust the threshold.
+
+You can also disable disk space monitoring here.
+
+
+---------------------------------------------------------------------------------
+
+
+
+setting up Gradle on Jenkins UI
+
 NOTE: Repeat the process for adding additional Nodes
 3.2. Configure "Gradle-Build-Env"
+
 Click New Node
 
 Node name: Gradle-Build-Env
@@ -214,15 +183,140 @@ Usage: Use this node as much as possible
 
 Launch method: Launch agents via SSH
 
-Host: Provide IP of Gradle-Build-Server
+Host: Provide Private IP of Gradle-Build-Server
 Credentials:
+
+------------------------------------------------------------------------------------------------------------------------------
 Login to Gradle VM
+-------------------------------------------------------------------------------------------------------------------------------
+
+
 Run the following commands
 sudo su
 passwd root
 provide the password as "root", "root"
-vi /etc/ssh/sshd_config (:/PasswordAuthentication)
+
+✅ 2. Allow root login over SSH
+
+Edit the SSH config file:
+
+vi /etc/ssh/sshd_config 
+
+Look for:
+
+#PermitRootLogin prohibit-password
+
+➡️ Change it to:
+
+
+PermitRootLogin yes
+
+✅ Uncomment it (remove the #) and set to yes.
+
+Also ensure this is set:
+
+PasswordAuthentication yes
+
+This enables login with passwords (instead of just key pairs).
+
+✅ 3. (Optional but recommended) Allow PAM
+Also ensure this is enabled in /etc/ssh/sshd_config:
+
+Find #UsePAM no change it to UsePAM yes
+
+Als find #PubkeyAuthentication yes    and uncomment it (i.e remove the #)
+
+
+✅ 4.Restart SSH again if you change it.
+
+
+
 systemctl restart sshd
+
+✅ 5. There is a file in your sshd which is sshd_config.d/ it wil currently over ride thepassword authentication you set inside the sshd file so you need to change it to yes or comment it 
+
+run the command: 
+
+sudo grep -r PasswordAuthentication /etc/ssh/sshd_config.d/
+
+
+you should have : 
+
+/etc/ssh/sshd_config.d/60-cloudimg-settings.conf:PasswordAuthentication no
+
+This overrides your main config and disables password authentication.
+
+
+How to fix it:
+
+Edit the file:
+
+
+sudo nano /etc/ssh/sshd_config.d/60-cloudimg-settings.conf
+
+Change this line:
+
+
+PasswordAuthentication no
+
+
+to
+
+
+PasswordAuthentication yes
+
+Save and exit (Ctrl + O, Enter, Ctrl + X).
+
+Restart sshd to apply changes:
+
+
+sudo systemctl restart sshd
+
+Verify the effective config again:
+
+
+sudo sshd -T | grep -Ei 'permitrootlogin|passwordauthentication'
+
+It should now output:
+
+
+permitrootlogin yes
+passwordauthentication yes
+
+
+Now try to SSH as root with password:
+
+
+Test root SSH login from your terminal
+
+ssh root@<GRADLE_VM_PUBLIC_IP>
+ ------------------------------------------------------------------------------------------------
+
+To shorten your PATH like this:
+
+Edit your shell config file to persist the variables after reboot or re-login:
+
+
+nano ~/.bashrc
+
+🔽 Then add these lines at the end:
+
+
+export GRADLE_HOME=/opt/gradle/gradle-7.6.1
+export PATH=$GRADLE_HOME/bin:$PATH
+
+💾 Save and exit (CTRL+O, ENTER, then CTRL+X).
+
+Then reload the file to apply changes immediately:
+
+
+source ~/.bashrc
+
+Check if Gradle is now working:
+
+gradle -v
+------------------------------------------------------------------------------------------------------------------------
+
 Credentials:
 Click on Add / Jenkins and Select Username and Password
 Username: root
@@ -231,7 +325,35 @@ ID: Gradle-Build-Env-Credential
 Save
 Credentials: Select Gradle-Build-Env-Credential
 Host Key Verification Strategy: Non Verifying Verification Strategy
+--------------------------------------------------------------------------------------------------------------------
+
+
+NOTE: (In prod, do not set this to Non Verifying verificatin strategy)  This is how to go about it.   
+
+✅ Step-by-Step Fix
+🛠 Step 1: Create the .ssh directory (if not present)
+
+SSH into your Jenkins master and run:
+
+
+sudo mkdir -p /var/lib/jenkins/.ssh
+sudo chown jenkins:jenkins /var/lib/jenkins/.ssh
+sudo chmod 700 /var/lib/jenkins/.ssh
+
+
+🛠 Step 2: Add the slave’s SSH host key to known_hosts
+Run:
+
+
+sudo -u jenkins ssh-keyscan -H (Your_Gradle_Private_IP) >> /var/lib/jenkins/.ssh/known_hosts
+sudo chmod 644 /var/lib/jenkins/.ssh/known_hosts
+
+This registers the slave's host key, so Jenkins trusts it.
+
+--------------------------------------------------------------------------------------------------------------------------
+
 Availability: Keep this agent online as much as possible
+
 NODE PROPERTIES
 
 Select Environment variables
@@ -239,7 +361,7 @@ Select Environment variables
 Click Add
 1st Variable:
 Name: GRADLE_HOME
-Value: /opt/gradle/gradle-6.8.3
+Value: /opt/gradle/gradle-7.6.1
 2nd Variable:
 Name: PATH
 Value: $GRADLE_HOME/bin:$PATH
