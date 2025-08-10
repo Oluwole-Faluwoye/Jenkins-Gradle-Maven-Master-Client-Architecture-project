@@ -4,12 +4,9 @@
 - Instance type: t2.micro
 - Security group ports: 22
 
-## 2️⃣ SSH into your gradle vm and Configure Gradle
-```bash
+Paste your Grade-userdata 
 
-vi Gradle-userdata
-Paste your Grade-userdata here and save it 
-```
+Launch your instance
 
 - NOTE/Test: ssh jenkinsmaster@GRADLE_VM_PUBLIC_IP
 

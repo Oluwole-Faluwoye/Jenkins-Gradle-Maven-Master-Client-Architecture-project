@@ -2,7 +2,7 @@ Amazon Linux 2
 
 open port 8080
 
-T2. medium
+T2. medium or t3.medium
 
 
 Userdata for Jenkins 
@@ -13,25 +13,44 @@ curl -s https://raw.githubusercontent.com/Oluwole-Faluwoye/Jenkins-Gradle-Maven-
 
 
 
- Configure Master and Clinet Configuration
+- Configure Master and Clinet Configuration
+
 Click on "Manage Jenkins" >> Click "Nodes and Cloud" >> Click "New Node"
+
 Click New Node
+
 Node name: Maven-Build-Env
+
 Type: Permanent Agent >> Click CREATE
+
 3.1. Configure "Maven-Build-Env"
+
 Name: Maven-Build-Env
+
 Number of Executors: 5 (for example, maximum jobs to execute at a time)
+
 Remote root directory: /opt/maven-builds
+
 Labels: Maven-Build-Env
+
 Usage: Use this node as much as possible
+
 Launch method: Launch agents via SSH
+
 Host: Provide Private IP of Maven-Build-Server
+
+
 Credentials:
 
+
+--------------------------------------------------------------------------------
+wait here
 ------------------------------------------------------------------------------------
 
 Login to Maven VM
+
 Run the following commands
+
 sudo su
 
 passwd root
@@ -85,7 +104,11 @@ Password: root
 ID: Maven-Build-Env-Credential
 Save
 Credentials: Select Maven-Build-Env-Credential
-Host Key Verification Strategy: Non Verifying Verification Strategy
+Host Key Verification Strategy: (Non Verifying Verification Strategy )
+
+In (Prod), you don't do this, see how its done in the gradle setup
+
+
 Availability: Keep this agent online as much as possible
 NODE PROPERTIES
 Select Environment variables
@@ -101,42 +124,8 @@ Click SAVE
 
 NOTE: Make sure the Agent Status shows Agent successfully connected and online on the Logs
 
-----------------------------------------------------------------------------
-
-nano ~/.bashrc
-
-Add Maven Environment Variables
-At the bottom of the file, add:
-
-export MAVEN_HOME=/opt/maven
-export PATH=$MAVEN_HOME/bin:$PATH
 
 
- Save and Exit
-In nano:
-
-Press CTRL + O, then ENTER to save.
-
-Press CTRL + X to exit.
-
-5. Reload .bashrc to Apply Changes Immediately
-
-source ~/.bashrc
-
-6. Verify
-Run:
-
-
-echo $MAVEN_HOME
-
-You should see:
-
-/opt/maven
-
-Then to get your path:
-
-
-mvn -v
 ----------------------------------------------------------------------------------------------------------------------------------------------------
 
 Our Maven Node is up but the diskspace where it is running is low so here is one of the option to sort that, we can either mount more space or disable or reduce the threshold for diskspace in Jenkins settings 
@@ -147,7 +136,7 @@ You can configure Jenkins to accept lower disk space:
 
 Go to Manage Jenkins → Nodes.
 
-Click the node having the problem.
+Click on the Maven-Build-Env node.
 
 Click Configure.
 
@@ -267,10 +256,10 @@ PasswordAuthentication yes
 
 Save and exit (Ctrl + O, Enter, Ctrl + X).
 
-Restart sshd to apply changes:
+Restart ssh to apply changes:
 
 
-sudo systemctl restart sshd
+sudo systemctl restart ssh
 
 Verify the effective config again:
 
@@ -315,7 +304,13 @@ source ~/.bashrc
 Check if Gradle is now working:
 
 gradle -v
-------------------------------------------------------------------------------------------------------------------------
+
+
+
+---------------------------------------------------------------------------------------
+Back to Jenkins web UI
+-----------------------------------------------------------------------------
+
 
 Credentials:
 Click on Add / Jenkins and Select Username and Password
@@ -367,50 +362,138 @@ Name: PATH
 Value: $GRADLE_HOME/bin:$PATH
 Click SAVE
 
-NOTE: Make sure the Agent Status shows Agent successfully connected and online on the Logs
+NOTE: Make sure the Agent Status shows Agent successfully connected and online in the Logs
 
-NOTE: Repeat the process for adding additional Nodes
+NOTE: Repeat the process for adding any additional Nodes
+
+
+--------------------------------------------------------------------
 
 4️⃣ Plugin Installation Before Job Creation
+
 Install: Delivery Pipeline plugin
-Click on Dashboard on Jenkins
-Click on The + on your Jenkins Dashboard and Configure the View
-Select Enable start of new pipeline build
-Pipelines >> Components >> Click Add
-Name: Maven-Continuous-Integration-Pipeline or Gradle-Continuous-Integration-Pipeline
-Initial Job: Select either the Maven Build Job or 1st Job or Gradle Build Job or 1st Job
-APPLY and SAVE
+
+
 5️⃣ CREATE PROJECT PIPELINE JOBS
+
 5.1. Create Maven Build, Test and Deploy Job
+
+-----------------------------------------------------------------------------
 Maven Build Job
+-----------------------------------------------------------------------------
+
 Click on New Item
+
 Name: Maven-Continuous-Integration-Pipeline-Build
+
 Type: Freestyle
+
 Click: OK
-Select: GitHub project, Project url: YOUR_MAVEN_PROJECT_REPOSITORY
-Select Restrict where this project can be run:, Label Expression: Maven-Build-Env
+
+Select: GitHub project, Project url: YOUR_MAVEN_PROJECT_REPOSITORY      
+
+(MY REPO URL:  https://github.com/Oluwole-Faluwoye/realworld-cicd-pipeline-project.git )
+
+Select Restrict where this project can be run:, 
+
+Label Expression: Maven-Build-Env
+
 Select Git, Repository URL: YOUR_MAVEN_PROJECT_REPOSITORY
-Branches to build: */main or master
+
+(MY REPO URL:  https://github.com/Oluwole-Faluwoye/realworld-cicd-pipeline-project.git )
+
+Branches to build: Enter the branch in which your project codes are (*/main or master ) 
+
+Mine :  */maven-sonarqube-nexus
+
 Build Steps: Execute Shell
-Command: mvn clean build
+
+Command:  Now you need cd into whatever folder your pom.xml is in, check your repository and confirm if your pom.xml is in the root directory or in another directory in your project folder (paste these commands)
+
+cd JavaWebApp  
+mvn clean install
+
 APPLY and SAVE
+
+----------------------------------------------------------------------------------------------------------------------
 Maven SonarQube Test Job
+----------------------------------------------------------------------------------------------------------------
 Click on New Item
+
 Name: Maven-Continuous-Integration-Pipeline-SonarQube-Test
+
 Type: Freestyle
+
 Click: OK
-Select: GitHub project, Project url: YOUR_MAVEN_PROJECT_REPOSITORY
+
+- Select: GitHub project, Project url: YOUR_MAVEN_PROJECT_REPOSITORY
+
+(MY REPO URL:  https://github.com/Oluwole-Faluwoye/realworld-cicd-pipeline-project.git )
+
+- Select Delivery pipeline configuration
+
+stage Name: Test
+
+Task Name : Run unit Test
+
+
 Select Restrict where this project can be run:, Label Expression: Maven-Build-Env
+
 Select Git, Repository URL: YOUR_MAVEN_PROJECT_REPOSITORY
-Branches to build: */main or master
+
+(MY REPO URL:  https://github.com/Oluwole-Faluwoye/realworld-cicd-pipeline-project.git )
+
+Branches to build: */maven-sonarqube-nexus
+
 Build Steps: Execute Shell
-Command: """mvn sonar:sonar
--Dsonar.projectKey=Maven-JavaWebApp-Analysis
--Dsonar.host.url=http://PROVIDE_PRIVATE_IP:9000
--Dsonar.login=SONARQUBE_PROJECT_AUTHORIZATION_TOKEN"""
+
+if we run the sonar build now, it will fail cos Maven 
+
+set MAVEN_OPTS in your Jenkins Pipeline or Freestyle job build step
+In the Execute shell build step or Pipeline sh step, prefix your Maven command:
+
+PASTE THIS IN THE 'Command' section:
+
+-----------------------------------------------------------------------------------
+( My correct format )
+---------------------------------------------------------------------------------------
+
+
+
+cd JavaWebApp
+
+export MAVEN_OPTS="--add-opens java.base/java.lang=ALL-UNNAMED \
+--add-opens java.base/java.util=ALL-UNNAMED \
+--add-opens java.base/java.io=ALL-UNNAMED"
+
+mvn sonar:sonar \
+  -Dsonar.projectKey=Maven-JavaWebApp-Analysis \
+  -Dsonar.host.url=http://172.31.5.118:9000 \
+  -Dsonar.login=0049840b9b7777ccb5b196d6c4fd2896f04c1e4d
+
+
+  
+-----------------------------------------------------------------------------------------
+THIS IS THE TEMPLATE USED ABOVE JUST FOR MORE CLARITY
+-----------------------------------------------------------------------------------------    
+
+mvn sonar:sonar \
+  -Dsonar.projectKey=Maven-JavaWebApp-Analysis \
+  -Dsonar.host.url=http://PROVIDE_PRIVATE_IP:9000 \
+  -Dsonar.login=SONARQUBE_PROJECT_AUTHORIZATION_TOKEN
+
+------------------------------------------------------------------------------------
+
+
 APPLY and SAVE
+
+
+-------------------------------------------------------------------------------------
 Maven Nexus Upload Job
+----------------------------------------------------------------------------------------
+
 Click on New Item
+
 Name: Maven-Continuous-Integration-Pipeline-Nexus-Upload
 
 Type: Freestyle
@@ -418,63 +501,294 @@ Type: Freestyle
 Click: OK
 
 Select: GitHub project, Project url: YOUR_MAVEN_PROJECT_REPOSITORY
+
+(MY REPO URL:  https://github.com/Oluwole-Faluwoye/realworld-cicd-pipeline-project.git )
+
+- Select Delivery pipeline configuration
+
+stage Name: Deploy
+
+Task Name : Deploy to Env    ( Fill in your env either Prod, Dev etc )
+
+
 Select Restrict where this project can be run:, Label Expression: Maven-Build-Env
 
 Select Git, Repository URL: YOUR_MAVEN_PROJECT_REPOSITORY
 
-Branches to build: */main or master
+ MY REPO URL:  https://github.com/Oluwole-Faluwoye/realworld-cicd-pipeline-project.git
+
+Branches to build: */maven-sonarqube-nexus
 
 Build Steps: Execute Shell
 
-Command: mvn deploy
+Command: 
+
+cd JavaWebApp
+mvn deploy
+
 APPLY and SAVE
+
+---------------------------------------------------------------------------------------------------------------------------------
+
+Click on Dashboard on Jenkins
+
+Click on The + (You'll see new view up there when you hover around the + sign beside 'All' on your Jenkins Dashboard. (Not the + beside 'New item' : The new Item is used to create a job but we want to create a view instead) 
+
+Now Configure the View
+
+scroll down and Select Enable start of new pipeline build
+
+Pipelines >> Components >> Click Add
+
+Name: Maven-Continuous-Integration-Pipeline or Gradle-Continuous-Integration-Pipeline
+
+Initial Job: Select either the Maven Build Job or Gradle Build Job 
+
+APPLY and SAVE
+
+------------------------------------------------------------------------------------------------------------------------------------
 
 5.2. Create Gradle Build, Test and Deploy Job
+
 Gradle Build Job
+
 Click on New Item
+
 Name: Gradle-Continuous-Integration-Pipeline-Build
+
 Type: Freestyle
+
 Click: OK
+
 Select: GitHub project, Project url: YOUR_GRADLE_PROJECT_REPOSITORY
+
 Select Restrict where this project can be run:, Label Expression: Gradle-Build-Env
+
 Select Git, Repository URL: YOUR_GRADLE_PROJECT_REPOSITORY
-Branches to build: */main or master
+Branches to build: */maven-sonarqube-nexus
+
 Build Steps: Execute Shell
+
 Command: gradle clean build
 APPLY and SAVE
+--------------------------------------------------------------------------------------------------------------------------------
+
 Gradle SonarQube Test Job
+
 Click on New Item
+
 Name: Gradle-Continuous-Integration-Pipeline-SonarQube-Test
+
 Type: Freestyle
+
 Click: OK
+
 Select: GitHub project, Project url: YOUR_GRADLE_PROJECT_REPOSITORY
+
 Select Restrict where this project can be run:, Label Expression: Gradle-Build-Env
+
 Select Git, Repository URL: YOUR_GRADLE_PROJECT_REPOSITORY
-Branches to build: */main or master
+
+Branches to build: */maven-sonarqube-nexus
+
 Build Steps: Execute Shell
+
 Command: gradle sonarqube
+
 APPLY and SAVE
+
+-------------------------------------------------------------------------------------------------------------
+
 Gradle Nexus Deploy Job
+
 Click on New Item
+
 Name: Gradle-Continuous-Integration-Pipeline-Nexus-Upload
+
 Type: Freestyle
+
 Click: OK
+
 Select: GitHub project, Project url: YOUR_GRADLE_PROJECT_REPOSITORY
+
 Select Restrict where this project can be run:, Label Expression: Gradle-Build-Env
+
 Select Git, Repository URL: YOUR_GRADLE_PROJECT_REPOSITORY
+
 Branches to build: */main or master
+
 Build Steps: Execute Shell
+
 Command: gradle publish
+
 APPLY and SAVE
+
+---------------------------------------------------------------------------
+
 6️⃣ JOB INTEGRATION
+
 6.1. Integrate The Maven JOBS Together To Create a CI Pipeline
+
 Click on your First Job > Click Configure
-Scroll to Post-build Actions Click Add P-B-A >> Projects to build "Select" Second Job
+
+Scroll to Post-build Actions Click Add P-B-A >> Select Build other projects >> Projects to build "Type out the name of your " Second Job
+
 Click on your Second Job > Click Configure
-Scroll to Post-build Actions Click Add P-B-A >> Projects to build "Select" Third Job
+
+Scroll to Post-build Actions Click Add P-B-A >> Select Build other projects >> Projects to build "Type out the name of your "Select" Third Job
+
+-----------------------------------------------------------------------------------------------------------------------------------
+
 6.2. Integrate The Gradle JOBS Together To Create a CI Pipeline
+
 Click on your First Job > Click Configure
-Scroll to Post-build Actions Click Add P-B-A >> Projects to build "Select" Second Job
+
+Scroll to Post-build Actions Click Add P-B-A >> Select Build other projects >> Projects to build "Type out the name of your "Select" Second Job
+
 Click on your Second Job > Click Configure
-Scroll to Post-build Actions Click Add P-B-A >> Projects to build "Select" Third Job
+
+Scroll to Post-build Actions Click Add P-B-A >> Select Build other projects >> Projects to build "Type out the name of your "Select" Third Job
+
+
+After updating the settings.xml file and the pom.xml files, and pushing to your repo, 
+
+--------------------------------------------------------------------------------------------------------------------------
+Now go clone your project code into your Maven instance and Cd into the branch you have your code ( In your maven instance )
+-----------------------------------------------------------------------------------------------------------------------------
+
+
+The Deploy job is still failing due to credentials failure so we need to configure manually in the Jenkins UI which settings.xml file Maven should pick up
+
+here are the steps:
+
+1. Verify Jenkins Maven Credentials Injection Setup
+a) Create a credentials Specifically for Nexus and Store in Jenkins:
+Go to Jenkins → Manage Jenkins → Credentials → System → Global credentials.
+
+Click Add Credentials:
+
+Kind: Username with password
+
+Username: your Nexus username (In Enterprise settings, the Nexus accounts will have different users and you will be given a username and password, ensure the username and password your admin gives you have the right permission privilege)
+
+Password: your Nexus password
+
+ID: nexus-creds (or any ID you like)
+
+Save.
+
+b) Configure your Jenkins job to inject these credentials:
+Go back to the Nexus Deploy job configuration:
+----------------------------------------------------------------------------------------
+Go to your Jenkins dashboard.
+
+Click on your freestyle job’s name. ( i.e Nexus Upload Job)
+
+Click Configure on the left sidebar.
+
+Scroll down the configuration page — you’ll see sections like:
+
+
+-----------------------------------------------------------------------------------------------------
+General
+
+Source Code Management
+
+Build Triggers
+
+Build Environment ←  ( This is what you're looking for)
+
+Build
+
+Post-build Actions
+--------------------------------------------------------------------------------------------------------
+
+
+
+Under Build Environment, check Use secret text(s) or file(s).
+
+Click Add Binding → Username and password (separated).
+
+
+Set Username Variable: NEXUS_USERNAME
+
+Set Password Variable: NEXUS_PASSWORD
+
+Credentials : select Specific Credentials 
+
+Click the drop down and select your Nexus credential  ( nexus-creds )
+
+c) Use a managed Maven settings.xml file with variables:
+
+First, Install Config File Provider Plugin (if not already).
+
+Go to plugins under Manage Jenkins and install the 'Config File Provider' Plugin and refresh Jenkins
+
+Next
+
+Go to Manage Jenkins → Managed files → Add a new Config →  Select Maven settings.xml.
+
+Paste in ID section :  maven-settings-nexus
+
+Create a settings.xml. Paste this:
+
+
+<settings>
+  <servers>
+    <server>
+      <id>nexusdeploymentrepo</id>
+      <username>${env.NEXUS_USERNAME}</username>
+      <password>${env.NEXUS_PASSWORD}</password>
+    </server>
+  </servers>
+</settings>
+
+
+
+
+d) In your Nexus upload job, 
+
+Under build step select 'Add build step'
+
+Select : Provide Configuration files
+
+--------------------------------------------------------------------------------------------
+ After selecting Provide Configuration files, You'd see Managed Files :
+
+File : maven-settings-nexus  ( select whatever name you set as your settings file, from the drop down )
+
+Target : settings.xml
+
+Variable : SETTINGS_XML      ( NOTE : MUST BE IN CAPITAL LETTERS )
+
+
+e) Configure the Nexus-Upload Job to use the settings.xml file you just configured in the Jenkins UI to publish the Artifact to nexus 
+
+
+Step by Step
+-------------------------------------------------------------------------------------------------------------------------------
+Select Nexus Upload Job
+
+select  configuration, 
+
+Scroll down to Build Steps section
+
+Select Add build step, specify Settings file to use the provided one.
+
+Under build steps section :  select 'Add build step'
+
+- Paste this in the 'Command' section : 
+
+-------------------------------------------------------------------------------------------------------------
+
+cd JavaWebApp
+mvn clean deploy -X -s $SETTINGS_XML
+
+--------------------------------------------------------------------------------------------------------------------
+
+Note: The -X helps Maven to run in debug mode and output detailed logs about what it’s doing — including info about authentication, repository access, plugin execution, etc.
+
+This extra detail helps diagnose why deploys fail or why credentials aren’t working.
+
+
 7️⃣ TEST YOUR PIPELINE
