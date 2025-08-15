@@ -1,42 +1,53 @@
 #!/bin/bash
+set -e  # Exit if any command fails
 
-# Update and install Java 17
-sudo apt update -y
-sudo apt install openjdk-17-jdk -y
+# Update system
+apt update -y
 
-# Verify Java 17 installation
+# Install Java 17
+apt install -y openjdk-17-jdk
+
+# Verify Java installation
 java -version
 
-# Download and install compatible Gradle (7.6.1 supports Java 17)
+# Create Gradle installation directory
+mkdir -p /opt/gradle
+
+# Download and extract Gradle 7.6.1
 wget -c https://services.gradle.org/distributions/gradle-7.6.1-bin.zip -P /tmp
-sudo apt install unzip -y
-sudo unzip -d /opt/gradle /tmp/gradle-7.6.1-bin.zip
-ls /opt/gradle
+apt install -y unzip
+unzip -d /opt/gradle /tmp/gradle-7.6.1-bin.zip
 
-# Create environment setup script for Gradle
-cat << 'EOF' | sudo tee /etc/profile.d/gradle.sh
+# Add Gradle to PATH for all users (system-wide)
+echo "export GRADLE_HOME=/opt/gradle/gradle-7.6.1" | tee /etc/profile.d/gradle.sh
+echo 'export PATH=$GRADLE_HOME/bin:$PATH' | tee -a /etc/profile.d/gradle.sh
+chmod +x /etc/profile.d/gradle.sh
+
+# Also export immediately for this script run
 export GRADLE_HOME=/opt/gradle/gradle-7.6.1
-export PATH=${GRADLE_HOME}/bin:${PATH}
-EOF
+export PATH=$GRADLE_HOME/bin:$PATH
 
-# Make the script executable and load it
-sudo chmod +x /etc/profile.d/gradle.sh
-source /etc/profile.d/gradle.sh
+# Verify Gradle now works
+gradle -v
 
-# Verify Gradle version
-gradle --version
+# Create Jenkins master user
+useradd jenkinsmaster -m
+echo "jenkinsmaster:jenkinsmaster" | chpasswd
 
-# Provision Jenkins Master User
-sudo useradd jenkinsmaster -m
-echo "jenkinsmaster:jenkinsmaster" | sudo chpasswd
+# Ensure Gradle PATH is also in jenkinsmaster's shell immediately
+echo "export GRADLE_HOME=/opt/gradle/gradle-7.6.1" >> /home/jenkinsmaster/.bashrc
+echo 'export PATH=$GRADLE_HOME/bin:$PATH' >> /home/jenkinsmaster/.bashrc
+chown jenkinsmaster:jenkinsmaster /home/jenkinsmaster/.bashrc
 
-# Enable password authentication and sudo access
-sudo sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/g' /etc/ssh/sshd_config
-sudo systemctl restart sshd
-echo "jenkinsmaster ALL=(ALL) NOPASSWD: ALL" | sudo tee -a /etc/sudoers
+# Enable password authentication
+sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/g' /etc/ssh/sshd_config
+systemctl restart sshd
 
-# Set ownership of Gradle installation
-sudo chown -R jenkinsmaster:jenkinsmaster /opt
+# Give sudo access to Jenkins master
+echo "jenkinsmaster ALL=(ALL) NOPASSWD: ALL" | tee -a /etc/sudoers
+
+# Change ownership of /opt
+chown -R jenkinsmaster:jenkinsmaster /opt
 
 # Install Git
-sudo apt install git -y
+apt install -y git

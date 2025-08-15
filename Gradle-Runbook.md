@@ -4,13 +4,16 @@
 - Instance type: t2.micro
 - Security group ports: 22
 
-Paste your Grade-userdata 
+Paste your Gradle-userdata 
 
 Launch your instance
 
 - NOTE/Test: ssh jenkinsmaster@GRADLE_VM_PUBLIC_IP
 
+Edit your build. gradle file  to inte
+
 ### 2.1. NOTE: (Only Neccessary if you're implementing this out locally) | Clone your Project repo
+
 ```bash
 cd /home/ec2-user
 git clone PROJECT_REPOSITORY_URL

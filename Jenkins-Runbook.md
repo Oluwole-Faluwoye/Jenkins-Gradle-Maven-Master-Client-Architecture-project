@@ -12,8 +12,13 @@ Userdata for Jenkins
 curl -s https://raw.githubusercontent.com/Oluwole-Faluwoye/Jenkins-Gradle-Maven-Master-Client-Architecture-project/refs/heads/main/Jenkins-userdata.sh | bash
 
 
-
+--------------------------------------------------------------------------------------
 - Configure Master and Clinet Configuration
+---------------------------------------------------------------------------------------
+
+
+NODE 1 : MAVEN 
+
 
 Click on "Manage Jenkins" >> Click "Nodes and Cloud" >> Click "New Node"
 
@@ -150,11 +155,15 @@ You can also disable disk space monitoring here.
 ---------------------------------------------------------------------------------
 
 
-
+------------------------------------------------------------
 setting up Gradle on Jenkins UI
+------------------------------------------------------------
+
 
 NOTE: Repeat the process for adding additional Nodes
 3.2. Configure "Gradle-Build-Env"
+
+NODE : 2
 
 Click New Node
 
@@ -233,7 +242,7 @@ you should have :
 
 /etc/ssh/sshd_config.d/60-cloudimg-settings.conf:PasswordAuthentication no
 
-This overrides your main config and disables password authentication.
+This shows that theres another config that overrides your main config and disables password authentication.
 
 
 How to fix it:
@@ -281,7 +290,7 @@ Test root SSH login from your terminal
 ssh root@<GRADLE_VM_PUBLIC_IP>
  ------------------------------------------------------------------------------------------------
 
-To shorten your PATH like this:
+To shorten your GRADLE PATH  I.E the setting environment variables to tell any user  youre using to build with gradle where your gradle home is and the path to the gradle agent running the build, set Env variables like this :
 
 Edit your shell config file to persist the variables after reboot or re-login:
 
@@ -522,10 +531,10 @@ Branches to build: */maven-sonarqube-nexus
 Build Steps: Execute Shell
 
 Command: 
-
+--------------------------------------------------------------------------------------------
 cd JavaWebApp
-mvn deploy
-
+mvn clean deploy -X -s $SETTINGS_XML
+---------------------------------------------------------------------------------------------
 APPLY and SAVE
 
 ---------------------------------------------------------------------------------------------------------------------------------
@@ -549,8 +558,9 @@ APPLY and SAVE
 ------------------------------------------------------------------------------------------------------------------------------------
 
 5.2. Create Gradle Build, Test and Deploy Job
-
+--------------------------------------------------------------------------------------------------------
 Gradle Build Job
+-----------------------------------------------------------------------------------------------------------
 
 Click on New Item
 
@@ -562,16 +572,75 @@ Click: OK
 
 Select: GitHub project, Project url: YOUR_GRADLE_PROJECT_REPOSITORY
 
+MY REPO URL:  https://github.com/Oluwole-Faluwoye/realworld-cicd-pipeline-project.git
+
 Select Restrict where this project can be run:, Label Expression: Gradle-Build-Env
 
 Select Git, Repository URL: YOUR_GRADLE_PROJECT_REPOSITORY
-Branches to build: */maven-sonarqube-nexus
+
+https://github.com/Oluwole-Faluwoye/realworld-cicd-pipeline-project.git
+
+Branches to build: */gradle-sonarqube-nexus-jenkins
 
 Build Steps: Execute Shell
 
-Command: gradle clean build
+Command: 
+
+export PATH=/opt/gradle/gradle-7.6.1/bin:$PATH
+gradle clean build
+
+
 APPLY and SAVE
+
+
 --------------------------------------------------------------------------------------------------------------------------------
+Integrating Sonarqube into your Gradle-Job.
+-------------------------------------------------------------------------------------------------------------------------------- 
+
+
+After launching your sonarqube instance
+
+login into your sonarqube web ui
+
+- Paste this on your web browser : SONARQUBE_PUBLIC_IP:9000
+
+- initial admin username and password for sonarqube is 
+
+username :admin
+
+password : admin
+
+- Create a new Project in sonarqube 
+
+- click set up
+
+-Generate a token e.g : Gradle-Build-Token       (Whatever name you want to use)
+
+select Your project's main language   ( ours is java )
+
+- select your build tool    (Gradle or maven) 
+
+
+
+Look for the following piece of Code in the "build.gradle" config file
+
+sonarqube {
+    properties {
+        property "sonar.sourceEncoding", "UTF-8"
+                property "sonar.projectName", "PROJECT_NAME"
+                property "sonar.host.url", "http://SONARQUBE_PRIVATE_IP:9000"
+                property "sonar.login", "TOKEN_GENERATED"
+    }
+}
+
+----------------------------------------------------------------------------------------------------------------
+
+update it with the information Sonarqube populated for you in your "build.gradle" file in your project code.   
+
+
+---------------------------------------------------------------------------------------------------------------------------
+Note: DO NOT COPY THE WHOLE COMMANDS POPULATED BY SONARQUBE INTO YOUR BUILD.GRADLE FILE, USE THE TEMPLATE ABOVE AND EDIT IT  ( You only use the exact commands populated by sonarqube if you are using gradlew which means gradle wrapper. You do that when you do not install Gradle in the instance you are building with and, you are calling a stable version or a particular version of gradle during the build.)
+---------------------------------------------------------------------------------------------------------------------------
 
 Gradle SonarQube Test Job
 
@@ -585,21 +654,76 @@ Click: OK
 
 Select: GitHub project, Project url: YOUR_GRADLE_PROJECT_REPOSITORY
 
+MY REPO URL:  https://github.com/Oluwole-Faluwoye/realworld-cicd-pipeline-project.git
+
 Select Restrict where this project can be run:, Label Expression: Gradle-Build-Env
 
 Select Git, Repository URL: YOUR_GRADLE_PROJECT_REPOSITORY
 
-Branches to build: */maven-sonarqube-nexus
+Branches to build: */gradle-sonarqube-nexus-jenkins
 
 Build Steps: Execute Shell
 
-Command: gradle sonarqube
+Command: 
+
+export PATH=/opt/gradle/gradle-7.6.1/bin:$PATH
+gradle sonarqube
+
 
 APPLY and SAVE
 
 -------------------------------------------------------------------------------------------------------------
+INTEGRATING NEXUS INTO YOUR JENKINS PIPELINE
+----------------------------------------------------------------------------------------------------
 
+Create your Nexus Instance 
+
+copy your Nexus_Instance_Public_IP:8081on web browser
+
+username : admin
+
+Get the admin password from your nexus instance
+
+SSH into your nexus instance 
+
+sudo cat /opt/sonatype-work/nexus3/admin.password
+
+- you can change your password here but ensure to use same password in your "build.gradle" file in the Nexus block
+
+Finish setting it up and disable anyonymous access
+
+Create a new repo where your artifact would be deployed
+
+Repo type: Maven2 (Hosted)
+
+could either be snapshot or release depending on your project
+
+
+
+Now push your changes to your repo after updating your sonarqube and Nexus details into your 'build.gradle' file
+
+-----------------------------------------------------------------------------------------
+Then download your project code into your Gradle instance 
+
+---------------------------------------------------------------------------------------
+
+for this project we will be cloning this repo 
+
+git clone https://github.com/Oluwole-Faluwoye/realworld-cicd-pipeline-project.git
+
+-cd into project code 
+
+cd realworld-cicd-pipeline-project
+
+- check out to the branch you intend building 
+
+- git checkout gradle-sonarqube-nexus-jenkins
+
+
+
+-------------------------------------------------------------------------------------------
 Gradle Nexus Deploy Job
+-------------------------------------------------------------------------------------------
 
 Click on New Item
 
@@ -611,15 +735,21 @@ Click: OK
 
 Select: GitHub project, Project url: YOUR_GRADLE_PROJECT_REPOSITORY
 
+MY REPO URL:  https://github.com/Oluwole-Faluwoye/realworld-cicd-pipeline-project.git
+
+
 Select Restrict where this project can be run:, Label Expression: Gradle-Build-Env
 
 Select Git, Repository URL: YOUR_GRADLE_PROJECT_REPOSITORY
 
-Branches to build: */main or master
+Branches to build: */gradle-sonarqube-nexus-jenkins     ( */your_project_branch)
 
 Build Steps: Execute Shell
 
-Command: gradle publish
+Command:
+
+export PATH=/opt/gradle/gradle-7.6.1/bin:$PATH 
+gradle publish
 
 APPLY and SAVE
 
@@ -792,3 +922,272 @@ This extra detail helps diagnose why deploys fail or why credentials aren’t wo
 
 
 7️⃣ TEST YOUR PIPELINE
+
+
+It is best practice to use environment variables instead of hardcoding secrets in our build.gradle file or Jenkins file So we can either set environment variable on Jenkins UI ( either on Jenkins global configuration applies to all Jenkins job or on a particular node. I.e jobs running on a particular node will use that environment variable or on the job itself) 
+
+You can also set environment variable inside the instance (i.e using 'expose' but its not best practice as your logs of your nodes node might get into the wrong hand but you can use the Jenkins Credential plug in to use the environment variables)
+GRADLE BUILD THAT READ ENVIRONMENT SETTINGS FROM JENKINS 
+
+Here's a complete build.gradle example that reads Jenkins environment variables (set via Jenkins UI in your master-client setup) using variables, keeping secrets out of your code:
+
+sample of my "build.gradle" file   (Also in my repo )
+
+
+
+
+-----------------------------------------------------------------------------
+
+
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '3.1.0'
+    id 'io.spring.dependency-management' version '1.1.0'
+    id 'org.sonarqube' version '4.3.0.3225'
+    id 'maven-publish'
+}
+
+def sonarToken = System.getenv('SONAR_TOKEN') ?: ''
+def nexusUsername = System.getenv('NEXUS_USERNAME') ?: ''
+def nexusPassword = System.getenv('NEXUS_PASSWORD') ?: ''
+
+group = 'com.example'
+version = '1.0.0-SNAPSHOT'
+sourceCompatibility = '17'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+}
+
+sonarqube {
+    properties {
+        property "sonar.sourceEncoding", "UTF-8"
+        property "sonar.projectName", "Gradle-Build"
+        property "sonar.projectKey", "Gradle-Build"
+        property "sonar.host.url", "http://172.31.2.62:9000"
+        property "sonar.login", sonarToken
+    }
+}
+
+publishing {
+    publications {
+        maven(MavenPublication) {
+            groupId = project.group
+            artifactId = 'your-artifact-id'
+            version = project.version
+            artifact(tasks.bootJar)
+        }
+    }
+    repositories {
+        maven {
+            url = uri("http://172.31.14.16:8081/repository/Gradle-Artifact/")
+            allowInsecureProtocol = true
+            credentials {
+                username = nexusUsername
+                password = nexusPassword
+            }
+        }
+    }
+}
+
+test {
+    useJUnitPlatform()
+}
+
+tasks.withType(PublishToMavenRepository) {
+    doFirst {
+        println 'Publishing artifacts to Nexus...'
+        println "Using Nexus username: ${nexusUsername ? '****' : 'NOT SET'}"
+        println "Using Sonar token: ${sonarToken ? '****' : 'NOT SET'}"
+    }
+}
+
+
+
+-------------------------------------------------------------------------------
+
+
+THINGS TO NOTE : 
+
+Most Jobs are snapshot and are updates to previous Apps, and it is important to specify  in the build.gradle if its a release or snapshot version. You set this in the version section a shown below :
+
+
+--------------------------------------------------------------------------------------------------
+
+group = 'com.example'
+version = '1.0.0'
+sourceCompatibility = '17'
+
+--------------------------------------------------------------------------------------------------
+
+
+
+If you do not specify like in the column below, gradle will assume its a 'RELEASE' version if its a snapshot version of your app, make sure to specify like this:
+
+
+------------------------------------------------------------------------------------------------------
+
+group = 'com.example'
+version = '1.0.0-SNAPSHOT'
+sourceCompatibility = '17'
+
+-------------------------------------------------------------------------------------------------
+This method below sets environment variable only at the level of the job and when you print your logs and echo it, you can still see the credentials, which can expose your credentials.
+----------------------------------------------------------------------------------------------
+
+How to set environment variables in Jenkins UI:
+Go to your Jenkins job → Configure → Build Environment section.
+
+Check “Use secret text(s) or file(s)” or “Inject environment variables” (depending on plugins installed).
+
+Add the following environment variables (using Jenkins credentials plugin for secrets is recommended):
+
+SONAR_TOKEN — paste your SonarQube token
+
+NEXUS_USERNAME — paste your Nexus username
+
+NEXUS_PASSWORD — paste your Nexus password
+
+These will be available as environment variables during the build, so build.gradle will pick them up automatically.
+
+
+
+---------------------------------------------------------------------------------------------------
+BELOW IS THE THE RECOMMENDED MEHTOD FOR OUR PROJECT SINCE IT IS A FREESTYLE PROJECT
+------------------------------------------------------------------------------------------------------
+For Freestyle Jobs with Credentials Binding:
+Add your secrets to Jenkins Credentials Store:
+
+Go to Jenkins Dashboard > Manage Jenkins > Credentials > System > Global credentials (unrestricted) > Add Credentials ( on the left sidebar.)
+
+Choose the Kind of credential you want to add:
+
+Secret text — For tokens like SonarQube token.
+
+Username with password — For Nexus or any service requiring username + password.
+
+Give them meaningful IDs, e.g., nexus-creds and sonar-token.
+
+Bind credentials to environment variables in your job config:
+
+---------------------------------------------------------------------------------------------
+Do this for your sonarqube job
+---------------------------------------------------------------------------------------------
+
+- Open your Freestyle job’s configuration page. 
+select your job
+select configure
+
+- Scroll down to Build Environment section.
+
+Check “Use secret text(s) or file(s)” or “Credentials Binding” (depending on your plugin version).
+
+select 'Add bindings':
+
+For Nexus, bind the username/password credential:
+
+Choose Username and password (separated) binding.
+
+Assign variables, e.g., NEXUS_USERNAME and NEXUS_PASSWORD.
+
+Select the credential ID nexus-creds.
+
+
+
+
+--------------------------------------------------------------------------------------------------
+Do this for your sonarqube job
+---------------------------------------------------------------------------------------------------
+
+
+For Sonar token, bind the Secret text credential:
+
+Assign variable SONAR_TOKEN.
+
+Select the credential ID sonar-token.
+
+Now when Jenkins runs the build, it injects those environment variables securely.
+
+
+
+
+
+
+
+------------------------------------------------------------------------------------------------------
+
+ALTHOUGH OUR PROJECT IS A FREESTYLE JOB IF YOU WANT TO USE A DECLARATIVE APPROACH USING A JENKINSFILE THIS IS A TEMPLATE OF JENKINSFILE YOU WILL USE 
+-----------------------------------------------------------------------------------------------------
+
+pipeline {
+    agent any
+
+    environment {
+        SONAR_TOKEN    = credentials('sonarqube-token-id')    // Jenkins credential ID for Sonar token
+        NEXUS_USERNAME = credentials('nexus-username-id')     // Jenkins credential ID for Nexus username
+        NEXUS_PASSWORD = credentials('nexus-password-id')     // Jenkins credential ID for Nexus password
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Build & Test') {
+            steps {
+                sh './gradlew clean build test'
+            }
+        }
+
+        stage('Publish Artifacts') {
+            steps {
+                sh './gradlew publish'
+            }
+        }
+
+        stage('SonarQube Analysis') {
+            steps {
+                sh './gradlew sonarqube'
+            }
+        }
+    }
+
+    post {
+        always {
+            echo 'Cleaning workspace...'
+            cleanWs()
+        }
+        success {
+            echo 'Build, publish, and SonarQube analysis completed successfully!'
+        }
+        failure {
+            echo 'Build or analysis failed. Please check the logs.'
+        }
+    }
+}
+
+-------------------------------------------------------------------------------------------------
+
+How this works:
+Uses Jenkins credentials() to inject secrets securely.
+
+'build.gradle' accesses these via System.getenv(...) as shown earlier.
+
+Runs stages for checkout, build, publish, and SonarQube analysis separately.
+
+Cleans workspace after each run.
+
+Masks secrets in console output automatically.
+
+Make sure:
+
+The Jenkins credentials IDs (sonarqube-token-id, nexus-username-id, nexus-password-id) match your Jenkins setup.
+
+Your build.gradle is configured to read those environment variables.
