@@ -545,9 +545,9 @@ Click on The + (You'll see new view up there when you hover around the + sign be
 
 Now Configure the View
 
-scroll down and Select Enable start of new pipeline build
+Type : Delivery Pipeline view >> Components >> Click Add
 
-Pipelines >> Components >> Click Add
+scroll down and Select Enable start of new pipeline build
 
 Name: Maven-Continuous-Integration-Pipeline or Gradle-Continuous-Integration-Pipeline
 
